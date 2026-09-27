@@ -72,7 +72,7 @@ if (cmd === "init") {
   try {
     const r = await init(process.cwd(), { name: flags.name, language: flags.language, example: !!flags.example });
     console.log(`${r.written.length} files and ${r.folders.length} folders in ${r.dir}\n`);
-    if (!r.example) console.log("Empty vault. `company-os init --example` adds a small company with a real problem in it.\n");
+    if (!r.example && !r.brain) console.log("Empty vault. `company-os init --example` adds a small company with a real problem in it.\nFor a full brain to fill in, start from github.com/mondayrunner/company-brain and run `company-os init` inside it.\n");
     console.log(nextSteps(r).join("\n"));
   } catch (e) { console.error(`company-os: ${e.message}`); process.exit(1); }
   process.exit(0);

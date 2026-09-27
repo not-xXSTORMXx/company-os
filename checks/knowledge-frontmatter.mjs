@@ -14,7 +14,7 @@ export default {
     if (!dir || !(await h.isDir(dir))) return [];
     const sla = cfg.slaDays ?? 60;
     const out = [];
-    for (const f of (await h.list(dir)).filter((f) => f.endsWith(".md") && f !== "INDEX.md")) {
+    for (const f of (await h.list(dir)).filter((f) => f.endsWith(".md") && f !== "INDEX.md" && f !== "README.md")) {
       const rel = `${dir}/${f}`;
       const { meta, raw } = frontmatter(await h.read(rel));
       if (raw === null) { out.push({ severity: "error", where: rel, what: "no frontmatter" }); continue; }

@@ -20,6 +20,8 @@ git clone https://github.com/mondayrunner/company-os.git
 cd company-os && npm link      # or: alias company-os="node $PWD/bin/company-os.mjs"
 ```
 
+Want a brain to start from? Clone [company-brain](https://github.com/mondayrunner/company-brain), an empty company brain in plain markdown, and run `company-os init` inside it: init recognises the layout, writes a matching config and leaves your files alone.
+
 New here? Read [docs/getting-started.md](docs/getting-started.md), ten minutes from clone to a brain that answers. Letting your agent install it? Point it at [AGENTS.md](AGENTS.md): the setup as a conversation, with the questions it asks you and the rules it keeps. Prefer pictures? Open [docs/explained.html](docs/explained.html): nine drawings, few words.
 
 Your company has a memory that lives in folders. Every morning notes come in: messages, recordings, what happened in the bank. A robot sorts them into the right folder. When you ask something, it looks through the folders and tells you where it found the answer. Every week it checks whether notes have gone stale and asks you: shall I fix this? It never fixes anything on its own. Anything that leaves the building, an email or an invoice, you send by hand.

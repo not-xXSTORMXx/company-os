@@ -44,3 +44,28 @@ test("init refuses to overwrite an existing vault", async () => {
     await assert.rejects(() => init(dir, { name: "Other" }), /already exists/);
   } finally { await clean(); }
 });
+
+test("init in a company-brain folder writes a matching config and overwrites nothing", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "os-brain-"));
+  try {
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    await mkdir(join(dir, "knowledge"), { recursive: true });
+    await writeFile(join(dir, "AGENTS.md"), "# rules\n");
+    await writeFile(join(dir, "CLAUDE.md"), "@AGENTS.md\n");
+    await writeFile(join(dir, "README.md"), "# my brain\n");
+    await writeFile(join(dir, "knowledge", "README.md"), "# Knowledge\n");
+    await writeFile(join(dir, ".gitignore"), ".DS_Store\n");
+    const r = await init(dir, { name: "Acme" });
+    assert.equal(r.brain, true);
+    assert.equal(await readFile(join(dir, "CLAUDE.md"), "utf8"), "@AGENTS.md\n");
+    assert.equal(await readFile(join(dir, "README.md"), "utf8"), "# my brain\n");
+    const ignore = await readFile(join(dir, ".gitignore"), "utf8");
+    assert.match(ignore, /^\.DS_Store$/m);
+    assert.match(ignore, /^\.company-os\/$/m);
+    const cfg = JSON.parse(await readFile(join(dir, "company-os.config.json"), "utf8"));
+    assert.deepEqual(cfg.accounts.sides, ["leads", "customers", "lost", "churned"]);
+    assert.equal(cfg.canon.compass, "knowledge/compass.md");
+    assert.equal(cfg.pipeline.file, "pipeline.md");
+    await assert.rejects(() => init(dir, { name: "Acme" }), /already exists/);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});

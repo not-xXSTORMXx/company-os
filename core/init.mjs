@@ -7,12 +7,61 @@
  * them with a small company that has a real problem in it: the first `check`
  * finds it. The demo is the explanation.
  */
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { DEFAULTS, CONFIG_FILE } from "./config.mjs";
 
 const FOLDERS = ["knowledge", "accounts/leads", "accounts/customers", "inbox", "outputs", "transcripts/_inbox"];
+
+/**
+ * A folder cloned from the company-brain template
+ * (github.com/mondayrunner/company-brain) is recognised by these two files.
+ * init then writes a config that matches its layout and leaves every
+ * existing file alone: the brain is the canon, init only adds the engine.
+ */
+export function isCompanyBrain(dir) {
+  return existsSync(join(dir, "AGENTS.md")) && existsSync(join(dir, "knowledge", "README.md"));
+}
+
+const BRAIN_FOLDERS = ["accounts/leads", "accounts/customers", "accounts/lost", "accounts/churned", "inbox", "outputs", "transcripts/_inbox"];
+
+/** The config for a company-brain folder. Every path here exists in the template. */
+function brainConfig({ name, language }) {
+  const base = starterConfig({ name, language });
+  return {
+    ...base,
+    kinds: [
+      { kind: "knowledge", prefix: "knowledge/" },
+      { kind: "account", pattern: "^accounts/[^/]+/" },
+      { kind: "contact", prefix: "contacts/" },
+      { kind: "playbook", prefix: "playbooks/" },
+      { kind: "legal", prefix: "legal/" },
+      { kind: "transcript", prefix: "transcripts/" },
+    ],
+    accounts: { ...base.accounts, sides: ["leads", "customers", "lost", "churned"], openSides: ["leads"], wonSides: ["customers"] },
+    canon: {
+      company: "company.md",
+      positioning: "knowledge/positioning.md",
+      pricing: "knowledge/pricing.md",
+      finance: "knowledge/finance.md",
+      brand: "knowledge/brand.md",
+      team: "knowledge/team.md",
+      compass: "knowledge/compass.md",
+      decisions: "knowledge/decisions.md",
+    },
+    pipeline: {
+      file: "pipeline.md",
+      updateLine: "Last update",
+      logHeading: "## Log",
+      leads: { heading: "## Active leads", columns: ["since", "who", "stage", "action", "ball", "folder"], who: "who", ball: "ball", action: "action" },
+      ballSelf: ["you", "me", "us"],
+    },
+    checks: { knowledge: { dir: "knowledge", slaDays: 60 }, docs: ["AGENTS.md", "README.md"] },
+  };
+}
+
+const IGNORE_LINES = [".company-os/", "outputs/", "*.log"];
 
 /** The config a fresh vault starts with. Every path here matches FOLDERS. */
 function starterConfig({ name, language }) {
@@ -143,16 +192,22 @@ export async function init(dir, { name = "My company", language = "en", example 
   if (existsSync(file)) throw new Error(`${CONFIG_FILE} already exists in ${dir}`);
 
   const written = [];
+  const kept = [];
+  // Never overwrite: a file that is already there is the user's, not ours.
   const put = async (rel, text) => {
     const target = join(dir, rel);
+    if (existsSync(target)) { kept.push(rel); return; }
     await mkdir(join(target, ".."), { recursive: true });
     await writeFile(target, text);
     written.push(rel);
   };
 
-  for (const f of FOLDERS) await mkdir(join(dir, f), { recursive: true });
+  const brain = isCompanyBrain(dir);
+  if (brain && example) throw new Error("this folder is already a company brain; --example is for an empty folder");
+  const folders = brain ? BRAIN_FOLDERS : FOLDERS;
+  for (const f of folders) await mkdir(join(dir, f), { recursive: true });
 
-  const config = starterConfig({ name, language });
+  const config = brain ? brainConfig({ name, language }) : starterConfig({ name, language });
   if (example) {
     config.pipeline = {
       file: "pipeline.md",
@@ -167,14 +222,27 @@ export async function init(dir, { name = "My company", language = "en", example 
   await put("CLAUDE.md", CLAUDE_MD(name));
   await put("README.md", README(name));
   // The index and the job state are derived; the vault is the canon and the only thing worth committing.
-  await put(".gitignore", ".company-os/\noutputs/\n*.log\n");
+  const ignore = join(dir, ".gitignore");
+  if (existsSync(ignore)) {
+    const have = await readFile(ignore, "utf8");
+    const missing = IGNORE_LINES.filter((l) => !have.split("\n").includes(l));
+    if (missing.length) { await writeFile(ignore, have.replace(/\n?$/, "\n") + missing.join("\n") + "\n"); written.push(".gitignore"); }
+  } else await put(".gitignore", IGNORE_LINES.join("\n") + "\n");
   if (example) for (const [rel, text] of Object.entries(EXAMPLE(new Date().toISOString().slice(0, 10)))) await put(rel, text);
 
-  return { dir, folders: FOLDERS, written, example };
+  return { dir, folders, written, kept, example, brain };
 }
 
 /** What to do next, in the order that makes the thing explain itself. */
-export function nextSteps({ example }) {
+export function nextSteps({ example, brain }) {
+  if (brain) return [
+    "Recognised a company brain: config written, your files left alone.",
+    "",
+    "company-os index      read the brain",
+    "company-os canon      the canon keys (pricing, compass, decisions, ...)",
+    "company-os check      what drifted",
+    "company-os serve      the same answers as MCP tools for your agent",
+  ];
   return [
     "company-os index      read what is there",
     "company-os status     what the brain now holds",
