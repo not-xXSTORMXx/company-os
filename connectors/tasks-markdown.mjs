@@ -14,7 +14,7 @@ import { readFile } from "node:fs/promises";
 export function parseTasks(text, now = Date.now()) {
   const items = [];
   let list = "";
-  text.split("\n").forEach((line, i) => {
+  text.split(/\r?\n/).forEach((line, i) => {
     const h = line.match(/^#{1,6}\s+(.+)$/);
     if (h) { list = h[1].trim(); return; }
     const m = line.match(/^\s*[-*]\s+\[( |x|X)\]\s+(.+)$/);
